@@ -367,3 +367,35 @@ class Dictionary:
             self._extra_membership.clear()
             self._claimed.clear()
             self._native_claim = None
+
+    def prune_remaining(self) -> int:
+        """Drop outstanding main-wordlist entries, keeping dynamic extras.
+
+        Adaptive pruning has decided that the remaining entries of the current
+        directory would only repeat one shared response class. Already claimed
+        entries stay recoverable for pause/resume, while dynamically discovered
+        paths in ``_extra`` are never discarded. Returns the removed count.
+        """
+        with self._lock:
+            if isinstance(self._items, NativeWordlistCorpus):
+                # A native chunk may already be in flight. Rewinding the index
+                # to its start keeps that chunk's claims recoverable, while
+                # dropping every entry after the claimed range.
+                if self._native_claim is not None:
+                    cut_index = self._native_claim.start
+                else:
+                    cut_index = self._index
+                remaining = len(self._items) - cut_index
+                if remaining <= 0:
+                    return 0
+                materialized = self._items[:cut_index]
+            else:
+                cut_index = self._index
+                remaining = len(self._items) - cut_index
+                if remaining <= 0:
+                    return 0
+                materialized = self._items[:cut_index]
+
+            self._items = materialized
+            self._item_membership = set(materialized)
+            return remaining

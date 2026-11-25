@@ -1,0 +1,17 @@
+{
+  "root": "/home/dev/feedback/uid36814",
+  "B": "/home/dev/feedback/uid36814",
+  "sha": "87f137d8927be0a439d5a77db54c498df1506022",
+  "wslDistro": "Ubuntu-26.04",
+  "source": {
+    "owner": "maurosoria",
+    "repo": "dirsearch",
+    "sha": "87f137d8927be0a439d5a77db54c498df1506022"
+  },
+  "fork": {
+    "owner": "Rrr119",
+    "repo": "dirsearch",
+    "cloneUrl": "https://github.com/Rrr119/dirsearch.git"
+  },
+  "at": "2026-11-25T02:39:13.631Z"
+}

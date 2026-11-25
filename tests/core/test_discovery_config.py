@@ -42,6 +42,9 @@ class TestDiscoveryConfig(TestCase):
             "prefixes": ["first-", "first-"], "suffixes": ["~"],
             "extensions": ["txt"], "subdirs": ["", "base/"],
             "exclude_subdirs": ["private/"],
+            "adaptive_dictionary": True,
+            "adaptive_sample_size": 25,
+            "adaptive_prune_ratio": 0.8,
         }
         actual = DiscoveryConfig.from_options(supplied)
         self.assertEqual(actual, DiscoveryConfig(**supplied))

@@ -642,6 +642,8 @@ class Controller:
                     self.resources.interface.warning(msg)
 
                 self.fuzzer.set_base_path(current_directory)
+                if self.fuzzer.adaptive_pruner is not None:
+                    self.fuzzer.adaptive_pruner.reset()
                 if self.config.execution.engine is ScanEngine.ASYNC:
                     # use a future to get exceptions from handle_pause
                     # https://stackoverflow.com/a/64230941

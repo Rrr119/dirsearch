@@ -28,6 +28,9 @@ class DiscoveryConfig:
     prefixes: tuple[str, ...] = ()
     suffixes: tuple[str, ...] = ()
     extensions: tuple[str, ...] = ()
+    adaptive_dictionary: bool = False
+    adaptive_sample_size: int = 100
+    adaptive_prune_ratio: float = 0.9
 
     def __post_init__(self) -> None:
         # Preserve ordering, duplicates and empty root entries. Normalization
@@ -38,6 +41,11 @@ class DiscoveryConfig:
         object.__setattr__(self, "prefixes", tuple(self.prefixes))
         object.__setattr__(self, "suffixes", tuple(self.suffixes))
         object.__setattr__(self, "extensions", tuple(self.extensions))
+        object.__setattr__(
+            self,
+            "adaptive_prune_ratio",
+            float(self.adaptive_prune_ratio),
+        )
 
     @classmethod
     def from_options(cls, values: Mapping[str, Any]) -> DiscoveryConfig:
@@ -55,4 +63,7 @@ class DiscoveryConfig:
             prefixes=values["prefixes"],
             suffixes=values["suffixes"],
             extensions=values["extensions"],
+            adaptive_dictionary=values["adaptive_dictionary"],
+            adaptive_sample_size=values["adaptive_sample_size"],
+            adaptive_prune_ratio=values["adaptive_prune_ratio"],
         )

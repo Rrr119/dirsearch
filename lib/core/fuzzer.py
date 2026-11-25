@@ -28,6 +28,7 @@ from typing import Any, Callable, Generator
 from lib.connection.native import NativeHTTPBackend, NativeRequester, NativeScanChunk
 from lib.connection.requester import AsyncRequester, BaseRequester, Requester
 from lib.connection.response import BaseResponse
+from lib.core.adaptive import AdaptivePruner
 from lib.core.dictionary import Dictionary
 from lib.core.discovery_config import DiscoveryConfig
 from lib.core.exceptions import RequestException
@@ -89,6 +90,15 @@ class BaseFuzzer:
         self.discovery_config = discovery_config
         self.execution_config = execution_config
         self.filter_state = FilterState()
+        self.adaptive_pruner = (
+            AdaptivePruner(
+                sample_size=discovery_config.adaptive_sample_size,
+                prune_ratio=discovery_config.adaptive_prune_ratio,
+                fingerprint_for=self.response_fingerprint,
+            )
+            if discovery_config.adaptive_dictionary
+            else None
+        )
         # One generator per target/fuzzer, shared across profiles and recursive
         # directories. Calibration precedes workers in all three engines.
         self._word_generator = StealthWordGenerator()
@@ -341,17 +351,59 @@ class BaseFuzzer:
         scanners = self.get_scanners_for(path)
 
         if self.is_excluded(response):
+            self._observe_adaptive(response)
             return self.not_found_callbacks
 
         for tester in scanners:
             # Check if the response is unique, not wildcard
             if not tester.check(path, response):
+                self._observe_adaptive(response)
                 return self.not_found_callbacks
 
         if self.is_filter_threshold_reached(response):
+            self._observe_adaptive(response)
             return self.not_found_callbacks
 
         return self.match_callbacks
+
+    def _observe_adaptive(self, response: BaseResponse) -> None:
+        """Feed a classified miss to the adaptive pruner and cut the queue.
+
+        Only miss-classified responses participate: a real finding must never
+        count toward the dominant soft-404 fingerprint. When the pruner fires,
+        outstanding main-wordlist entries are skipped; dynamic extras survive.
+        """
+        pruner = self.adaptive_pruner
+        if pruner is None or pruner.pruned:
+            return
+
+        if pruner.observe(response):
+            skipped = self._dictionary.prune_remaining()
+            self.logger.info(
+                "Adaptive dictionary pruning skipped %s remaining entries "
+                "(sample_size=%s, prune_ratio=%s)",
+                skipped,
+                pruner.sample_size,
+                pruner.prune_ratio,
+            )
+
+    def _observe_adaptive_batch(self, count: int) -> None:
+        """Feed an engine-side filtered run (native only) to the pruner."""
+        pruner = self.adaptive_pruner
+        if pruner is None or pruner.pruned or count <= 0:
+            return
+
+        if pruner.observe_filtered_batch(count):
+            skipped = self._dictionary.prune_remaining()
+            self.logger.info(
+                "Adaptive dictionary pruning skipped %s remaining entries "
+                "after %s engine-filtered responses (sample_size=%s, "
+                "prune_ratio=%s)",
+                skipped,
+                count,
+                pruner.sample_size,
+                pruner.prune_ratio,
+            )
 
     def process_response(self, path: str, response: BaseResponse) -> None:
         for callback in self.response_callbacks(path, response):
@@ -702,6 +754,7 @@ class NativeFuzzer(Fuzzer):
         count = end - start
         if count <= 0:
             return
+        self._observe_adaptive_batch(count)
         if isinstance(paths, NativeWordlistChunk):
             try:
                 for callback in self.filtered_chunk_callbacks:
@@ -737,6 +790,7 @@ class NativeFuzzer(Fuzzer):
         if response is None:
             raise RuntimeError("Native backend returned neither response nor error")
         if response.filtered:
+            self._observe_adaptive(response)
             for callback in self.not_found_callbacks:
                 callback(response)
             return

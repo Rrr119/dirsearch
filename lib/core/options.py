@@ -484,6 +484,12 @@ def validate_numeric_options(opt: Any) -> None:
         if getattr(opt, attribute) < 0:
             _fail(f"{option_name} must be zero or greater")
 
+    if opt.adaptive_sample_size < 1:
+        _fail("--adaptive-sample-size must be greater than zero")
+
+    if not 0.0 < opt.adaptive_prune_ratio <= 1.0:
+        _fail("--adaptive-prune-ratio must be between 0 (exclusive) and 1")
+
 
 def _is_cli_flag_present(*flags: str) -> bool:
     return any(argument in flags for argument in sys.argv[1:])
@@ -635,6 +641,20 @@ def merge_config(opt: Values) -> Values:
     )
     opt.recursion_status_codes = opt.recursion_status_codes or config.safe_get(
         "general", "recursion-status", "100-999"
+    )
+    opt.adaptive_dictionary = (
+        opt.adaptive_dictionary
+        or config.safe_getboolean("general", "adaptive-dictionary")
+    )
+    opt.adaptive_sample_size = (
+        config.safe_getint("general", "adaptive-sample-size", 100)
+        if opt.adaptive_sample_size is None
+        else opt.adaptive_sample_size
+    )
+    opt.adaptive_prune_ratio = (
+        config.safe_getfloat("general", "adaptive-prune-ratio", 0.9)
+        if opt.adaptive_prune_ratio is None
+        else opt.adaptive_prune_ratio
     )
     opt.subdirs = opt.subdirs or config.safe_get("general", "subdirs", "")
     opt.exclude_subdirs = opt.exclude_subdirs or config.safe_get(

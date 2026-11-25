@@ -419,6 +419,31 @@ def parse_arguments(arguments: list[str] | None = None) -> Values:
         help="Valid status codes to perform recursive scan, support ranges (separated by commas)",
     )
     general.add_option(
+        "--adaptive-dictionary",
+        action="store_true",
+        dest="adaptive_dictionary",
+        help="Skip remaining dictionary entries when the first sample "
+        "responses share one dominant fingerprint (soft-404 pruning)",
+    )
+    general.add_option(
+        "--adaptive-sample-size",
+        action="store",
+        type="int",
+        dest="adaptive_sample_size",
+        metavar="SIZE",
+        help="Number of leading responses examined before adaptive pruning "
+        "kicks in (default: 100)",
+    )
+    general.add_option(
+        "--adaptive-prune-ratio",
+        action="store",
+        type="float",
+        dest="adaptive_prune_ratio",
+        metavar="RATIO",
+        help="Fraction of identical fingerprints within the sample that "
+        "triggers adaptive pruning (default: 0.9)",
+    )
+    general.add_option(
         "--filter-threshold",
         action="store",
         type="int",
